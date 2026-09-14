@@ -1,0 +1,564 @@
+/* CFD Anything - two looks, switched by data-style on <html>:
+   paper        rough off-white paper, one calm handwriting, thin lines, no boxes
+   engineering  white with a faint drawing grid, technical sans, colour maps as in CFD software */
+:root {
+  --bg: #f3f2ee;
+  --ink: #2c2b29;
+  --ink-2: #6d6b66;
+  --ink-3: #a19e97;
+  --line-dark: #6a6862;
+  --accent: #2c2b29;              /* underlines, slider, badges */
+  --font: "Quicksand", "Nunito", "Varela Round", system-ui, sans-serif;
+  --font-num: var(--font);
+  --weight: 400;
+  --title-size: 30px;
+  --name-size: 18px;
+  --num-size: 30px;
+  --legend-cp: linear-gradient(90deg, #3f5f93 0%, #8aa3c7 30%, #f3f2ee 60%, #d9a08f 80%, #b04a36 100%);
+  --legend-u: linear-gradient(90deg, #b0532c 0%, #e9b28e 31%, #f3f2ee 62.5%, #9fcfcb 81%, #2e8c94 100%);
+  --left: 260px;
+  --head: 58px;                   /* row above the 3D view; the left column starts level with the view */
+  color-scheme: light;
+}
+
+html[data-style="engineering"] {
+  --bg: #ffffff;
+  --ink: #17212c;
+  --ink-2: #4b5a6b;
+  --ink-3: #8894a3;
+  --line-dark: rgba(23, 33, 44, 0.3);
+  --accent: #1f6fd1;
+  --font: "IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --weight: 400;
+  --title-size: 25px;
+  --name-size: 16px;
+  --num-size: 28px;
+  --legend-cp: linear-gradient(90deg, #30123b 0%, #4686fb 15%, #1be5b5 35%, #a4fc3c 50%, #fbb938 65%, #e4460a 85%, #7a0403 100%);
+  --legend-u: var(--legend-cp);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+
+/* paper: grain with a soft relief, edge to edge */
+body {
+  color: var(--ink); font: var(--weight) 18px/1.35 var(--font);
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='5' stitchTiles='stitch' result='n'/><feDiffuseLighting in='n' lighting-color='%23ffffff' surfaceScale='1.6'><feDistantLight azimuth='45' elevation='58'/></feDiffuseLighting></filter><rect width='100%' height='100%' filter='url(%23p)' opacity='.55'/></svg>"),
+                    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .33  0 0 0 0 .3  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
+  background-blend-mode: multiply, normal;
+}
+
+/* engineering: white under a fine and a coarse drawing grid */
+html[data-style="engineering"] body {
+  background-image: linear-gradient(rgba(31, 90, 160, 0.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(31, 90, 160, 0.05) 1px, transparent 1px),
+                    linear-gradient(rgba(31, 90, 160, 0.09) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(31, 90, 160, 0.09) 1px, transparent 1px);
+  background-size: 32px 32px, 32px 32px, 160px 160px, 160px 160px;
+  background-blend-mode: normal;
+}
+
+button { font: inherit; color: inherit; }
+
+.app {
+  position: relative; display: grid; grid-template-columns: var(--left) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 48px; height: 100vh; height: 100dvh; padding: 0 48px 10px;
+}
+
+.top { position: relative; grid-column: 1 / -1; padding: 22px 0 0; text-align: center; }
+
+.top h1 { margin: 0; font-weight: var(--weight); font-size: var(--title-size); letter-spacing: 0.02em; }
+
+html[data-style="engineering"] .top h1 { font-weight: 500; letter-spacing: 0.06em; }
+
+.beta {
+  display: inline-block; margin-left: 8px; padding: 0 9px 1px; border: 1px solid var(--accent); border-radius: 999px;
+  color: var(--accent); font-size: 0.46em; font-weight: 400; letter-spacing: 0.08em; line-height: 1.5; vertical-align: 0.5em;
+}
+
+.tagline { margin-left: 4px; color: var(--ink-2); font-size: 0.6em; letter-spacing: 0.01em; }
+
+html[data-style="engineering"] .tagline { font-weight: 400; letter-spacing: 0.02em; }
+
+@media (max-width: 1080px) { .tagline { display: none; } }     /* keep the header on one line */
+
+.styles { position: absolute; left: 0; top: 30px; display: flex; gap: 14px; }
+
+.links { position: absolute; right: 0; top: 30px; display: flex; gap: 14px; }
+
+.links a, .links button {
+  padding: 0; border: 0; background: none; color: var(--ink-3); font-size: 15px; text-decoration: none; cursor: pointer;
+}
+
+.links a:hover, .links button:hover { color: var(--ink-2); }
+
+html[data-style="engineering"] .links a, html[data-style="engineering"] .links button { font-size: 13px; }
+
+/* text toggles: style, flow lines, velocity / pressure, smooth turning */
+.styles button, .mode button, .turn {
+  padding: 0 0 1px; border: 0; border-bottom: 1.5px solid transparent; background: none; color: var(--ink-3); cursor: pointer;
+}
+
+.styles button, .turn { font-size: 15px; }
+
+.mode button { font-size: 18px; }
+
+html[data-style="engineering"] .mode button { font-size: 15px; }
+
+html[data-style="engineering"] .turn { font-size: 13px; }
+
+.styles button:hover, .mode button:hover, .turn:hover { color: var(--ink-2); }
+
+.styles button[aria-pressed="true"], .mode button[aria-pressed="true"], .turn[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* section label: small capitals underlined, a thin line runs on to the edge */
+.section { display: flex; align-items: flex-end; margin: 28px 0 10px; font-weight: 400; font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; }
+
+html[data-style="engineering"] .section { font-size: 12px; font-weight: 500; letter-spacing: 0.18em; }
+
+.section span { padding: 0 3px 2px 0; border-bottom: 1.5px solid var(--accent); }
+
+.section::after { content: ""; flex: 1; border-bottom: 1px solid var(--line-dark); }
+
+.side > .section:first-child { margin-top: var(--head); }
+
+/* ---------------------------------------------------------------- shapes: picture and name */
+.side { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+
+/* the list takes the room the column has left and scrolls; .more (app.js) fades the bottom while there is more below */
+.shape-list {
+  display: flex; flex-direction: column; flex: 0 1 auto; min-height: 64px; overflow-y: auto; overscroll-behavior: contain;
+  margin-inline: -4px; padding-inline: 4px;                  /* room for the focus outline */
+  scrollbar-width: thin; scrollbar-color: var(--ink-3) transparent;
+}
+
+.shape-list.more {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 32px), transparent);
+}
+
+.shape {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; column-gap: 14px;
+  width: 100%; padding: 4px 0; border: 0; background: none; text-align: left; color: var(--ink-2); cursor: pointer;
+}
+
+.shape canvas { display: block; width: 48px; height: 48px; }
+
+.shape .name { font-size: var(--name-size); line-height: 1.15; }
+
+.shape:hover .name, .shape[aria-checked="true"] .name { color: var(--ink); }
+
+.shape[aria-checked="true"] .name { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 4px; }
+
+.shape:focus-visible, .mode button:focus-visible, .styles button:focus-visible, .how:focus-visible, .upload:focus-visible,
+.turn:focus-visible, #view:focus-visible, #speed:focus-visible { outline: 1.5px solid var(--ink-2); outline-offset: 3px; }
+
+/* call to action: one more row of the list, a plus where the picture would be, a little darker and bolder than the names */
+.upload {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; column-gap: 14px;
+  width: 100%; margin-top: 4px; padding: 4px 0; border: 0; background: none; text-align: left; white-space: nowrap;
+  color: var(--ink); font-size: var(--name-size); font-weight: 500; line-height: 1.15; cursor: pointer;
+}
+
+.upload svg { justify-self: center; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+
+.side.over .upload { color: var(--accent); }                   /* a file dragged over the shapes column (account.js) */
+
+.upload:hover span, .side.over .upload span { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 4px; }
+
+html[data-style="engineering"] .upload { color: var(--accent); }
+
+/* ---------------------------------------------------------------- forces and flow speed */
+.forces { display: grid; grid-template-columns: 1fr 1fr; justify-items: center; padding-top: 4px; }
+
+.force { display: flex; flex-direction: column; align-items: center; }
+
+.force b { font-family: var(--font-num); font-weight: var(--weight); font-size: var(--num-size); line-height: 1.15; }
+
+.force span { color: var(--ink-2); font-size: 18px; }
+
+.force .val { display: flex; align-items: baseline; gap: 3px; }
+
+.force .pm { color: var(--ink-3); font-family: var(--font-num); font-size: 14px; }
+
+html[data-style="engineering"] .force .pm { font-size: 12px; }
+
+html[data-style="engineering"] .force span { font-size: 14px; }
+
+.speed { padding: 4px 2px 0; }
+
+#speed { width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+
+#speed::-webkit-slider-runnable-track { height: 1.5px; background: var(--line-dark); }
+
+#speed::-moz-range-track { height: 1.5px; background: var(--line-dark); }
+
+#speed::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; margin-top: -6.75px; border: 1.5px solid var(--accent); border-radius: 50%; background: var(--bg); }
+
+#speed::-moz-range-thumb { width: 12px; height: 12px; border: 1.5px solid var(--accent); border-radius: 50%; background: var(--bg); }
+
+#speed:disabled { opacity: 0.4; cursor: default; }
+
+.speed-scale { display: flex; justify-content: space-between; align-items: baseline; color: var(--ink-3); font-size: 15px; }
+
+.speed-scale output { color: var(--ink); font-family: var(--font-num); font-size: 18px; }
+
+html[data-style="engineering"] .speed-scale { font-size: 13px; }
+
+html[data-style="engineering"] .speed-scale output { font-size: 15px; }
+
+/* ---------------------------------------------------------------- AI model: name, error on unseen shapes */
+.model { margin-bottom: 14px; }                               /* keeps "how does this work…" apart; the shape list gives way */
+
+.model-name { margin: 0 0 4px; font-family: var(--font-num); font-size: 16px; letter-spacing: 0.02em; }
+
+html[data-style="engineering"] .model-name { font-size: 13px; }
+
+.model-err { display: grid; grid-template-columns: 1fr 1fr; justify-items: center; color: var(--ink-2); font-size: 15px; cursor: help; }
+
+.model-err b { margin-right: 3px; color: var(--ink); font-family: var(--font-num); font-weight: var(--weight); font-size: 22px; }
+
+html[data-style="engineering"] .model-err { font-size: 13px; }
+
+html[data-style="engineering"] .model-err b { font-size: 18px; }
+
+.model-note, .model-check { margin: 4px 0 0; color: var(--ink-3); font-size: 14px; }
+
+.model-note { text-align: center; }
+
+.model-check { display: flex; align-items: center; gap: 6px; color: var(--ink-2); cursor: help; }
+
+.model-check svg { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+html[data-style="engineering"] .model-note, html[data-style="engineering"] .model-check { font-size: 12px; }
+
+/* ---------------------------------------------------------------- viewer */
+.viewer { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.viewer-head { display: flex; align-items: flex-end; justify-content: flex-end; gap: 16px; height: var(--head); }
+
+/* "flow" over an arrow, in the bottom right corner of the view; the canvas is masked out around it (#view) */
+.flow-dir {
+  position: absolute; right: 30px; bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  color: var(--ink-2); font-size: 17px; line-height: 1.2; pointer-events: none;
+}
+
+html[data-style="engineering"] .flow-dir { font-size: 14px; letter-spacing: 0.04em; }
+
+.flow-dir svg { width: 56px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.mode { display: flex; align-items: baseline; gap: 22px; padding-bottom: 5px; }
+
+.mode .sep { margin: 0 -8px; color: var(--ink-3); }
+
+.stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+
+#view {
+  position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none;
+  /* lines fade out at the sides and leave a hole around the flow arrow (.flow-dir) */
+  --sides: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+  --hole: radial-gradient(ellipse 120px 64px at right 58px bottom 32px, transparent 50%, #000 100%);
+  -webkit-mask-image: var(--hole), var(--sides);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--hole), var(--sides);
+  mask-composite: intersect;
+}
+
+#view.dragging { cursor: grabbing; }
+
+#view.locked { cursor: default; }                              /* an upload still computing (local preview) */
+
+/* an upload computing, until its first view: flow lines drifting left to right under the grey body */
+.computing {
+  position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); display: flex; flex-direction: column;
+  align-items: center; gap: 6px; color: var(--ink-2); font-size: 18px; pointer-events: none;
+}
+
+.computing svg { width: 120px; height: 44px; fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-linecap: round; }
+
+.computing path { stroke-dasharray: 14 10; animation: flow-drift 1.1s linear infinite; }
+
+.computing path:nth-child(2) { stroke: var(--ink-2); animation-duration: 0.8s; }
+
+.computing path:nth-child(3) { animation-duration: 1.4s; }
+
+@keyframes flow-drift { to { stroke-dashoffset: -24; } }
+
+@media (prefers-reduced-motion: reduce) { .computing path { animation: none; } }
+
+.shape .nowrap { white-space: nowrap; }
+
+/* after the name of an upload whose angles are all computed */
+.shape .dot { display: inline-block; width: 7px; height: 7px; margin-left: 9px; border-radius: 50%; background: var(--ink-2); vertical-align: 0.12em; }
+
+.status { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); color: var(--ink-2); font-size: 22px; pointer-events: none; transition: opacity 0.4s; }
+
+.status.done { opacity: 0; }
+
+.status.error { color: #d0553d; text-align: center; }
+
+/* what to do, above the body until the first turn */
+.hint {
+  position: absolute; left: 50%; top: 7%; transform: translateX(-50%); width: max-content; max-width: 90%; color: var(--ink-2);
+  font-size: 18px; text-align: center; pointer-events: none; transition: opacity 0.6s;
+}
+
+html[data-style="engineering"] .hint { font-size: 15px; }
+
+.hint.gone, #view.locked ~ .hint { opacity: 0; }
+
+/* below the view, out of the flow: axes left, colour bar right */
+.foot { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+
+.triad { width: 64px; height: 64px; overflow: visible; }
+
+.triad line { stroke: var(--ink-3); stroke-width: 1.2; stroke-linecap: round; }
+
+.triad text { font: var(--weight) 14px var(--font); fill: var(--ink-3); text-anchor: middle; dominant-baseline: middle; }
+
+.foot-left { display: flex; align-items: center; gap: 22px; }
+
+.turn-hint { color: var(--ink-3); font-size: 14px; }                 /* shown while smooth turning is on */
+
+html[data-style="engineering"] .turn-hint { font-size: 12px; }
+
+.how {                                                         /* bottom of the left column */
+  align-self: flex-start; margin: auto 0 18px; padding: 0 0 2px; border: 0; border-bottom: 1px dashed var(--ink-3);
+  background: none; color: var(--ink-2); font-size: 17px; cursor: pointer;
+}
+
+html[data-style="engineering"] .how { font-size: 14px; }
+
+.how:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+.legends { justify-self: end; }
+
+.legend { width: 210px; color: var(--ink-2); font-size: 13px; }
+
+html[data-style="engineering"] .legend { font-size: 12px; }
+
+.legend sub { font-size: 0.62em; }
+
+.legend .bar { height: 6px; border-radius: 3px; }
+
+.legend .bar.cp { background: var(--legend-cp); }
+
+.legend .bar.u { background: var(--legend-u); }
+
+.legend .ticks { position: relative; height: 20px; }
+
+.legend .ticks span { position: absolute; top: 0; }
+
+.legend .ticks.cp span:nth-child(2) { left: 60%; transform: translateX(-50%); }       /* Cp 0 on −1.5 .. +1 */
+
+.legend .ticks.u span:nth-child(2) { left: 62.5%; transform: translateX(-50%); }      /* U∞ on 0 .. 1.6 */
+
+.legend .ticks span:nth-child(3) { right: 0; }
+
+.legend .ends { display: flex; justify-content: space-between; color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- centre windows */
+.dialog {
+  width: min(460px, calc(100vw - 32px)); padding: 28px 32px 24px; border: 1px solid var(--line-dark); border-radius: 12px;
+  background: var(--bg); color: var(--ink); font: inherit; box-shadow: 0 16px 48px rgba(30, 28, 24, 0.2);
+}
+
+.dialog::backdrop { background: rgba(40, 38, 34, 0.25); }
+
+html[data-style="engineering"] .dialog::backdrop { background: rgba(15, 25, 40, 0.3); }
+
+.dialog h2 { margin: 0 0 12px; font-weight: 400; font-size: 25px; }
+
+html[data-style="engineering"] .dialog h2 { font-size: 20px; font-weight: 500; }
+
+.dialog p { margin: 0 0 16px; color: var(--ink-2); line-height: 1.5; }
+
+.dialog a { color: var(--ink); text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+.dialog .close { position: absolute; top: 10px; right: 14px; padding: 0 4px; border: 0; background: none; color: var(--ink-3); font-size: 26px; line-height: 1; cursor: pointer; }
+
+.dialog .close:hover { color: var(--ink); }
+
+.dialog form { display: flex; gap: 10px; }
+
+.dialog input {
+  flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--line-dark); border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5); color: var(--ink); font: inherit;
+}
+
+.dialog form button { padding: 9px 18px; border: 0; border-radius: 8px; background: var(--ink); color: var(--bg); cursor: pointer; }
+
+html[data-style="engineering"] .dialog form button { background: var(--accent); color: #fff; font-weight: 500; }
+
+.form-note { min-height: 1.4em; margin: 12px 0 0 !important; font-size: 0.85em; }
+
+[hidden] { display: none !important; }                        /* also over the display: flex below */
+
+/* ---------------------------------------------------------------- upload window (account.js): pick, sign in, done */
+.drop {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px 18px;
+  border: 1.5px dashed var(--ink-3); border-radius: 10px; color: var(--ink-2); text-align: center; cursor: pointer;
+}
+
+.drop:hover, .drop.over { border-color: var(--ink); color: var(--ink); }
+
+.drop.picked { border-style: solid; border-color: var(--line-dark); }
+
+.drop:focus-within { outline: 1.5px solid var(--ink-2); outline-offset: 3px; }
+
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.drop svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.drop-main { color: var(--ink); font-size: 18px; overflow-wrap: anywhere; }
+
+.drop-main u { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+.drop-sub { color: var(--ink-3); font-size: 14px; }
+
+.drop + .primary { margin-top: 12px; }
+
+.dialog .primary { display: block; width: 100%; padding: 10px 18px; border: 0; border-radius: 8px; background: var(--ink); color: var(--bg); cursor: pointer; }
+
+.dialog .primary:disabled { opacity: 0.35; cursor: default; }
+
+html[data-style="engineering"] .dialog .primary { background: var(--accent); color: #fff; font-weight: 500; }
+
+.providers { display: flex; flex-direction: column; gap: 8px; }
+
+.provider {
+  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 9px 16px; border: 1px solid var(--line-dark);
+  border-radius: 8px; background: rgba(255, 255, 255, 0.5); color: var(--ink); cursor: pointer;
+}
+
+.provider:hover { border-color: var(--ink); }
+
+.provider svg { width: 18px; height: 18px; flex: none; }
+
+.dialog .or { display: flex; align-items: center; gap: 12px; margin: 16px 0 12px; color: var(--ink-3); font-size: 14px; }
+
+.dialog .or::before, .dialog .or::after { content: ""; flex: 1; border-top: 1px solid var(--line-dark); }
+
+#code-form { margin-top: 10px; }
+
+.upload-dialog form button { min-width: 116px; }
+
+.dialog .back { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--ink-3); font-size: 14px; cursor: pointer; }
+
+.dialog .back:hover { color: var(--ink); }
+
+.dialog .upload-fine { margin: 18px 0 0; color: var(--ink-3); font-size: 13px; }
+
+/* ---------------------------------------------------------------- profile, top left (signed in only) */
+.account { position: absolute; left: 0; top: 24px; z-index: 5; text-align: left; }
+
+.account-btn { display: flex; align-items: center; gap: 9px; padding: 0; border: 0; background: none; color: var(--ink-2); font-size: 15px; cursor: pointer; }
+
+.account-btn:hover, .account-btn[aria-expanded="true"] { color: var(--ink); }
+
+.account-btn:focus-visible { outline: 1.5px solid var(--ink-2); outline-offset: 3px; border-radius: 999px; }
+
+.avatar {
+  display: grid; place-items: center; width: 30px; height: 30px; border: 1.5px solid var(--accent); border-radius: 50%;
+  color: var(--ink); font-size: 15px; font-weight: 600; line-height: 1;
+}
+
+html[data-style="engineering"] .account-btn { font-size: 13px; }
+
+.account-menu {
+  position: absolute; left: -12px; top: calc(100% + 10px); width: 290px; padding: 16px 18px 14px;
+  border: 1px solid var(--line-dark); border-radius: 12px; background: var(--bg); box-shadow: 0 12px 36px rgba(30, 28, 24, 0.18);
+}
+
+.account-email { margin: 0 0 14px; color: var(--ink-2); font-size: 14px; overflow-wrap: anywhere; }
+
+.account-menu h3 { margin: 0 0 6px; color: var(--ink-3); font-weight: 400; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; }
+
+.uploads { max-height: 190px; margin: 0 0 14px; padding: 0; overflow-y: auto; list-style: none; font-size: 15px; scrollbar-width: thin; }
+
+.uploads li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 3px 0; }
+
+.uploads .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.uploads .st { flex: none; color: var(--ink-3); font-size: 13px; }
+
+.uploads a.st { color: var(--ink); text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+.uploads .st.failed { color: #d0553d; }
+
+.uploads .empty { color: var(--ink-3); font-size: 14px; }
+
+.account-actions { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--line-dark); }
+
+.account-actions button { padding: 0; border: 0; background: none; color: var(--ink-2); font-size: 15px; cursor: pointer; }
+
+.account-actions button:hover { color: var(--ink); }
+
+@media (max-width: 760px) {
+  .account { top: 6px; }
+  .avatar { width: 26px; height: 26px; font-size: 13px; }
+  .account-name { display: none; }
+}
+
+/* ---------------------------------------------------------------- impressum page */
+.legal-page, html:has(.legal-page) { overflow: auto; }
+
+.legal { max-width: 520px; margin: 0 auto; padding: 48px 24px; }
+
+.legal h1 { margin: 18px 0 20px; font-weight: 400; font-size: var(--title-size); }
+
+html[data-style="engineering"] .legal h1 { font-weight: 500; }
+
+.legal p { margin: 0 0 16px; line-height: 1.5; }
+
+.legal h2 { margin: 40px 0 14px; font-weight: 400; font-size: 22px; }
+
+.legal b { font-weight: 600; }
+
+.legal .small { margin-top: 32px; color: var(--ink-2); font-size: 0.85em; }
+
+.legal a { color: var(--ink); text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+.legal .back { color: var(--ink-3); font-size: 15px; text-decoration: none; }
+
+.legal .back:hover { color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- short or narrow screens */
+@media (max-height: 940px) {                                  /* keep the left column on one screen */
+  .shape, .upload { padding: 3px 0; }
+  .shape canvas { width: 42px; height: 42px; }
+  .section { margin-top: 16px; }
+}
+
+@media (max-height: 820px) {
+  :root { --head: 46px; }
+  .shape, .upload { padding: 2px 0; }
+  .shape canvas { width: 34px; height: 34px; }
+  .section { margin: 10px 0 8px; }
+  .how { margin-bottom: 8px; }
+}
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); padding: 0 16px 8px; }
+  .top { padding-top: 40px; }
+  .top h1 { font-size: 24px; }
+  .styles { top: 10px; gap: 10px; }
+  .links { top: 12px; gap: 10px; }
+  .links a, .links button { font-size: 13px; }
+  .section, .upload, .forces, .speed, .model { display: none; }
+  .shape-list { flex-direction: row; padding-top: 6px; overflow-x: auto; }
+  .shape { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .shape canvas { width: 44px; height: 44px; }
+  .shape .name { font-size: 14px; }
+  .viewer-head { height: 44px; }
+  .mode { gap: 12px; }
+  .mode button { font-size: 17px; }
+  .flow-dir svg { width: 32px; }
+  .foot { height: 56px; }
+  .triad, .how { display: none; }
+  .legend { width: 150px; }
+}

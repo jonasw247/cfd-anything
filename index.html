@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en" data-style="paper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CFD Anything – fast and accurate fluid simulations</title>
+<meta name="description" content="Instant AI flow prediction for arbitrary shapes: streamlines, velocity, surface pressure and drag from a neural surrogate trained on RANS CFD.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 22c12-9 22-8 30 0s18 8 22 2M6 34c12-9 22-8 30 0s18 8 22 2M9 46c12-9 21-8 29 0s17 8 20 2' fill='none' stroke='%233a3936' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
+<!-- engineering style switched off for now (2026-09-11): uncomment this script and the .styles buttons below to bring it back
+<script>
+  // pick the style before the first paint: ?style=engineering, else the last choice
+  try {
+    const s = new URLSearchParams(location.search).get("style") || localStorage.getItem("cfd-style");
+    if (s === "engineering" || s === "paper") document.documentElement.dataset.style = s;
+  } catch (e) { /* storage blocked: default style */ }
+</script>
+-->
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/build/three.module.min.js",
+               "three/addons/": "./vendor/three/examples/jsm/" } }
+</script>
+<!-- accounts and uploads (Supabase); account.js runs before app.js, which rewrites the URL -->
+<script src="vendor/supabase/supabase.js" defer></script>
+<script type="module" src="account.js"></script>
+<script type="module" src="app.js"></script>
+<!-- visit statistics (GoatCounter, no cookies): page views without the ?shape=… view state, which app.js counts as events -->
+<script>window.goatcounter = { path: () => location.pathname };</script>
+<script data-goatcounter="https://cfd-anything.goatcounter.com/count" async src="vendor/goatcounter/count.js"></script>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <!-- engineering style switched off for now, see the script in <head>
+    <div class="styles" role="group" aria-label="Style">
+      <button type="button" data-style="paper" aria-pressed="true">paper</button>
+      <button type="button" data-style="engineering" aria-pressed="false">engineering</button>
+    </div>
+    -->
+    <!-- signed in only (account.js): profile button, its menu lists the sent shapes -->
+    <div class="account" id="account" hidden>
+      <button type="button" class="account-btn" id="account-btn" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">
+        <span class="avatar" id="avatar" aria-hidden="true"></span><span class="account-name" id="account-name"></span>
+      </button>
+      <div class="account-menu" id="account-menu" hidden>
+        <p class="account-email" id="account-email"></p>
+        <h3>your shapes</h3>
+        <ul class="uploads" id="uploads-list"></ul>
+        <div class="account-actions">
+          <button type="button" id="menu-upload">upload a shape</button>
+          <button type="button" id="sign-out">sign out</button>
+        </div>
+      </div>
+    </div>
+    <h1>CFD Anything <span class="tagline">– Super fast and accurate fluid simulations</span> <span class="beta" title="still in development">beta</span></h1>
+    <div class="links">
+      <button type="button" id="credits" aria-haspopup="dialog">credits</button>
+      <a href="impressum.html#privacy">privacy</a>
+      <a href="impressum.html">impressum</a>
+    </div>
+  </header>
+
+  <nav class="side" aria-label="Shapes, forces and model">
+    <h2 class="section"><span id="shapes-title">unseen shapes</span></h2>
+    <div class="shape-list" id="shape-list" role="radiogroup" aria-labelledby="shapes-title"></div>
+    <button type="button" class="upload" id="upload" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span>upload your own</span>
+    </button>
+
+    <h2 class="section"><span>forces</span></h2>
+    <div class="forces" aria-live="polite">
+      <div class="force" title="± = mean drag error of the model on unseen shapes (8.6 %)"><div class="val"><b id="cd">–</b><small class="pm" id="cd-pm"></small></div><span>drag</span></div>
+      <div class="force" title="± = mean lift error of the model on unseen shapes (22 %, at least 0.08)"><div class="val"><b id="cl">–</b><small class="pm" id="cl-pm"></small></div><span>lift</span></div>
+    </div>
+
+    <!-- flow speed switched off for now (2026-09-11): every shape shows Re = 5·10⁵ (the middle one); uncomment to bring it back
+    <h2 class="section"><span id="speed-title">flow speed</span></h2>
+    <div class="speed">
+      <input type="range" id="speed" min="0" max="0" step="1" value="0" aria-labelledby="speed-title" aria-describedby="re">
+      <div class="speed-scale"><span>slow</span><output id="re" for="speed">Re = 5·10⁵</output><span>fast</span></div>
+    </div>
+    -->
+
+    <h2 class="section"><span>AI model</span></h2>
+    <div class="model">
+      <p class="model-name">flow_v01</p>
+      <div class="model-err" title="error = relative L2 error, mean over 87 cases of 40 shapes the model never saw in training: velocity in the flow around them, pressure (Cp) on their surface">
+        <div><b>12 %</b> velocity</div>
+        <div><b>36 %</b> pressure</div>
+      </div>
+      <p class="model-note">error on unseen shapes</p>
+      <p class="model-check" title="the simulation set-up behind the training data reproduces measured drag of the cube and the cylinder within 5 %">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>validated on real flow experiments</p>
+    </div>
+
+    <button type="button" class="how" id="how" aria-haspopup="dialog">how does this work so fast?</button>
+  </nav>
+
+  <section class="viewer" aria-label="3D view and flow prediction">
+    <div class="viewer-head">
+      <div class="mode" role="group" aria-label="Shown">
+        <button type="button" id="lines-toggle" aria-pressed="true">flow lines</button>
+        <span class="sep" aria-hidden="true">·</span>
+        <button type="button" data-field="velocity" aria-pressed="false" title="colour the flow by speed (click again to hide)">velocity</button>
+        <button type="button" data-field="pressure" aria-pressed="false" title="colour the surface by pressure (click again to hide)">pressure</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="view" tabindex="0" aria-label="3D view of the flow around the selected shape, flowing from left to right. Drag or use the arrow keys to rotate the shape like a trackball: sideways turns it, up and down rolls it about the flow axis, dragging up or down at the far left or right tilts it. Scroll, pinch or use plus and minus to zoom."></canvas>
+      <div class="flow-dir" title="the flow comes from the left"><span>flow</span><svg viewBox="0 0 56 14" aria-hidden="true"><path d="M1 7h52M46 1.5 53 7l-7 5.5"/></svg></div>
+      <div class="status" id="status">loading the flow…</div>
+      <!-- until the first turn (app.js hideHint); hidden while an upload computes (#view.locked) -->
+      <div class="hint" id="hint">drag to rotate the object in the flow and see how the flow changes</div>
+      <!-- an upload computing (local preview, app.js showUploadState): drifting flow lines until its first view is back -->
+      <div class="computing" id="computing" role="status" hidden>
+        <svg viewBox="0 0 120 44" aria-hidden="true"><path d="M2 10c20-7 38-7 58 0s38 7 58 0"/><path d="M2 22c20-7 38-7 58 0s38 7 58 0"/><path d="M2 34c20-7 38-7 58 0s38 7 58 0"/></svg>
+        <span id="computing-text">computing the flow</span>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <div class="foot-left">
+        <svg class="triad" id="triad" viewBox="-48 -48 96 96" aria-hidden="true"></svg>
+        <button type="button" class="turn" id="smooth-toggle" aria-pressed="true" aria-describedby="smooth-hint"
+                title="blend between the computed angles while turning: smooth, but interpolated, not computed">smooth turning</button>
+        <span class="turn-hint" id="smooth-hint">interpolated between computed angles</span>
+        <span class="turn-hint" id="upload-progress" role="status" hidden></span>
+      </div>
+      <div class="legends">
+        <div class="legend" id="legend-u" hidden>
+          <div class="bar u"></div>
+          <div class="ticks u"><span>0</span><span>1</span><span>1.6</span></div>
+          <div class="ends"><span>slow</span><span>|U| / U<sub>∞</sub></span><span>fast</span></div>
+        </div>
+        <div class="legend" id="legend-cp" hidden>
+          <div class="bar cp"></div>
+          <div class="ticks cp"><span>−1.5</span><span>0</span><span>+1</span></div>
+          <div class="ends"><span>suction</span><span>surface C<sub>p</sub></span><span>stagnation</span></div>
+        </div>
+      </div>
+    </footer>
+  </section>
+</main>
+
+<dialog class="dialog" id="about-dialog" aria-labelledby="about-title">
+  <button type="button" class="close" aria-label="Close">×</button>
+  <h2 id="about-title">how does this work so fast?</h2>
+  <p>We trained a large engineering AI model on a huge number of flow simulations and real flow channel data allowing it to predict the flow around new shapes in real-time. If you want to learn more, here you can
+    find our <a href="https://inpainting-physics.com" target="_blank" rel="noopener">technical report</a>.</p>
+</dialog>
+
+<dialog class="dialog" id="credits-dialog" aria-labelledby="credits-title">
+  <button type="button" class="close" aria-label="Close">×</button>
+  <h2 id="credits-title">credits</h2>
+  <p>Cow: <a href="https://www.thingiverse.com/thing:1602712" target="_blank" rel="noopener">“Traditional
+    Cow”</a> by pmoews, licensed under <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank"
+    rel="noopener">CC BY 3.0</a>. Changed: mesh cleaned (via the Thingi10K dataset), scaled and turned to stand in
+    the flow.</p>
+  <p>Built with <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> and
+    <a href="https://github.com/supabase/supabase-js" target="_blank" rel="noopener">supabase-js</a> (MIT licence). Fonts:
+    Quicksand and IBM Plex (SIL Open Font License).</p>
+</dialog>
+
+<!-- upload: pick a file (stays in the browser), sign in to send it, done (account.js) -->
+<dialog class="dialog upload-dialog" id="upload-dialog" aria-labelledby="upload-title">
+  <button type="button" class="close" aria-label="Close">×</button>
+  <h2 id="upload-title">upload your own shape</h2>
+
+  <div data-step="pick">
+    <label class="drop" id="drop">
+      <input type="file" id="upload-file" accept=".stl,.obj,.ply,.step,.stp">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      <span class="drop-main" id="drop-main"></span>
+      <span class="drop-sub" id="drop-sub"></span>
+    </label>
+    <button type="button" class="primary" id="upload-next" disabled>continue</button>
+    <p class="form-note" id="pick-note" role="status"></p>
+  </div>
+
+  <div data-step="signin" hidden>
+    <p>Sign in to compute the flow around <b id="signin-file"></b>.</p>
+    <div class="providers" id="providers"></div>
+    <p class="or"><span>or with your e-mail</span></p>
+    <form id="email-form">
+      <input type="email" name="email" required placeholder="your e-mail" autocomplete="email" aria-label="E-mail">
+      <button type="submit">send code</button>
+    </form>
+    <form id="code-form" hidden>
+      <input type="text" name="code" required inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}"
+             placeholder="6-digit code" aria-label="Code from the e-mail">
+      <button type="submit">sign in</button>
+    </form>
+    <p class="form-note" id="signin-note" role="status"></p>
+    <button type="button" class="back" id="signin-back">← other file</button>
+  </div>
+
+  <!-- until sign-in is connected (account.js: no Supabase) the public site stops here instead of the sign-in step -->
+  <div data-step="dev" hidden>
+    <p>Uploads are still under development. Soon you can compute the flow around <b id="dev-file"></b> here.</p>
+    <button type="button" class="back" id="dev-back">← back</button>
+  </div>
+
+  <div data-step="done" hidden>
+    <p>Computing the flow around <b id="done-file"></b>. It shows up in your shapes top left under your name
+      (<b id="done-email"></b>).</p>
+    <button type="button" class="primary" id="done-again">upload another</button>
+  </div>
+
+  <p class="upload-fine">Your file is only used to compute the flow for you. <a href="impressum.html#privacy">privacy</a></p>
+</dialog>
+</body>
+</html>
