@@ -11,6 +11,10 @@ const SUPABASE_ANON_KEY = "";                // the public "anon" key; row-level
 const PROVIDERS = ["google", "github"];      // OAuth providers switched on in the Supabase dashboard (also "azure")
 const MAX_MB = 200;                          // = file_size_limit of the bucket
 const FORMATS = [".stl", ".obj", ".ply", ".step", ".stp"];
+// On-prem inference service (worker behind the VPN, reached by a Cloudflare Tunnel): the file goes straight to it, it
+// computes the flow and streams the result back, no sign-in. "" = off (same-origin serve.py only, on localhost).
+const API_BASE = "";                         // e.g. https://cfd-api.example.com
+const api = (path) => (API_BASE ? `${API_BASE.replace(/\/$/, "")}/${path}` : path);
 
 const $ = (sel) => document.querySelector(sel);
 const track = (name) => { try { window.goatcounter?.count?.({ path: name, title: name, event: true }); } catch { /* ignore */ } };
@@ -28,11 +32,12 @@ const sb = SUPABASE_URL && window.supabase
   : null;
 let session = null;
 let pending = null;                           // { file }: picked, not sent yet
-// Local preview with website/local/serve.py: the file goes straight to that server, which computes the flow on a GPU
-// (no sign-in); app.js adds the shape to the list. Only looked for on localhost, so the published site never asks.
+// The inference service (API_BASE, the on-prem worker) or a same-origin serve.py on localhost: either computes the
+// flow with no sign-in and app.js adds the shape to the list. Probed once; the upload path appears only if it answers,
+// so the published site stays "under development" until API_BASE is set.
 let local = false;
-if (["localhost", "127.0.0.1"].includes(location.hostname)) {
-  fetch("api/local", { cache: "no-store" }).then((r) => { local = r.ok; if (local && pending) showPicked(); }, () => {});
+if (API_BASE || ["localhost", "127.0.0.1"].includes(location.hostname)) {
+  fetch(api("api/health"), { cache: "no-store" }).then((r) => { local = r.ok; if (local && pending) showPicked(); }, () => {});
 }
 
 // ------------------------------------------------------------------------------------------------ picked file across the OAuth redirect
@@ -88,7 +93,7 @@ async function computeLocal() {
   note("#pick-note", "");
   let res;
   try {
-    const r = await fetch(`api/upload?name=${encodeURIComponent(file.name)}`, { method: "POST", body: file });
+    const r = await fetch(api(`api/upload?name=${encodeURIComponent(file.name)}`), { method: "POST", body: file });
     res = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
     if (!r.ok) throw new Error(res.error || `HTTP ${r.status}`);
   } catch (err) {
